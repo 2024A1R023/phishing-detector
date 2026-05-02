@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phishing Detector</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --green: #00ff88;
+            --red: #ff3b6b;
+            --blue: #00d4ff;
+            --bg: #050a14;
+            --card: #0d1525;
+            --border: rgba(0, 255, 136, 0.15);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Syne', sans-serif;
+            background: var(--bg);
+            color: #e2e8f0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow-x: hidden;
+            position: relative;
+        }
+        body::before {
+            content: '';
+            position: fixed; inset: 0;
+            background-image:
+                linear-gradient(rgba(0,255,136,0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0,255,136,0.04) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+        }
+        body::after {
+            content: '';
+            position: fixed;
+            top: 50%; left: 50%;
+            transform: translate(-50%,-50%);
+            width: 600px; height: 600px;
+            background: radial-gradient(circle, rgba(0,255,136,0.06) 0%, transparent 70%);
+            pointer-events: none;
+        }
+        .orb { position: fixed; border-radius: 50%; filter: blur(80px); pointer-events: none; animation: float-orb 8s ease-in-out infinite; }
+        .orb1 { width:300px;height:300px;background:rgba(0,255,136,0.08);top:-50px;left:-100px; }
+        .orb2 { width:200px;height:200px;background:rgba(0,212,255,0.07);bottom:-80px;right:-60px;animation-delay:-3s; }
+        .orb3 { width:150px;height:150px;background:rgba(255,59,107,0.05);top:40%;right:10%;animation-delay:-5s; }
+        @keyframes float-orb { 0%,100%{transform:translateY(0) scale(1)} 50%{transform:translateY(-20px) scale(1.05)} }
+        canvas#particles { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+
+        .container { position: relative; z-index: 10; width: 100%; max-width: 500px; padding: 20px; }
+
+        .header { text-align: center; margin-bottom: 32px; animation: slide-down 0.8s cubic-bezier(0.34,1.56,0.64,1); }
+        @keyframes slide-down { from{opacity:0;transform:translateY(-30px)} to{opacity:1;transform:translateY(0)} }
+
+        .logo-ring { position: relative; width: 80px; height: 80px; margin: 0 auto 16px; }
+        .logo-ring svg.spinner { position: absolute; inset: 0; animation: spin 6s linear infinite; }
+        @keyframes spin { to{transform:rotate(360deg)} }
+        .logo-ring svg.shield { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); }
+        .pulse-ring { position: absolute; inset: -8px; border-radius: 50%; border: 1.5px solid rgba(0,255,136,0.3); animation: pulse-expand 2.5s ease-out infinite; }
+        .pulse-ring:nth-child(2) { animation-delay: 0.8s; inset: -16px; }
+        @keyframes pulse-expand { 0%{transform:scale(0.8);opacity:0.8} 100%{transform:scale(1.4);opacity:0} }
+
+        h1 { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 26px; letter-spacing: -0.5px; color: #f8fafc; margin-bottom: 4px; animation: glitch 6s infinite; }
+        h1 span { color: var(--green); }
+        @keyframes glitch { 0%,92%,95%,100%{clip-path:none;transform:none} 93%{clip-path:polygon(0 30%,100% 30%,100% 50%,0 50%);transform:translateX(-3px)} 94%{clip-path:polygon(0 60%,100% 60%,100% 80%,0 80%);transform:translateX(3px)} }
+
+        .tagline { font-family: 'Space Mono', monospace; font-size: 11px; color: rgba(148,163,184,0.8); letter-spacing: 2px; text-transform: uppercase; }
+
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 32px;
+            position: relative;
+            overflow: hidden;
+            animation: fade-up 0.8s 0.2s cubic-bezier(0.34,1.56,0.64,1) both;
+        }
+        @keyframes fade-up { from{opacity:0;transform:translateY(30px)} to{opacity:1;transform:translateY(0)} }
+        .card::before { content:''; position:absolute; top:-1px;left:-1px; width:20px;height:20px; border-top:2px solid var(--green); border-left:2px solid var(--green); border-radius:20px 0 0 0; }
+        .card::after  { content:''; position:absolute; bottom:-1px;right:-1px; width:20px;height:20px; border-bottom:2px solid var(--green); border-right:2px solid var(--green); border-radius:0 0 20px 0; }
+
+        .scan-line { position:absolute; left:0;right:0; height:1px; background:linear-gradient(90deg,transparent,var(--green),transparent); opacity:0; top:0; }
+        .scan-line.active { animation: scan-sweep 2s ease-in-out; }
+        @keyframes scan-sweep { 0%{top:0;opacity:0.8} 100%{top:100%;opacity:0} }
+
+        .input-label { font-family:'Space Mono',monospace; font-size:10px; color:var(--green); letter-spacing:2px; text-transform:uppercase; margin-bottom:8px; display:flex; align-items:center; gap:6px; }
+        .input-label::before { content:''; width:4px;height:4px; background:var(--green); border-radius:50%; display:inline-block; }
+
+        .url-input {
+            width: 100%;
+            background: rgba(0,0,0,0.4);
+            border: 1px solid rgba(0,255,136,0.2);
+            border-radius: 12px;
+            padding: 14px 48px 14px 16px;
+            font-family: 'Space Mono', monospace;
+            font-size: 13px;
+            color: #e2e8f0;
+            outline: none;
+            transition: border-color 0.3s, box-shadow 0.3s;
+            margin-bottom: 16px;
+        }
+        .url-input:focus { border-color: rgba(0,255,136,0.6); box-shadow: 0 0 0 3px rgba(0,255,136,0.08), 0 0 20px rgba(0,255,136,0.1); }
+        .url-input::placeholder { color: rgba(148,163,184,0.4); }
+
+        .scan-btn {
+            width: 100%; padding: 15px; border-radius: 12px;
+            border: 1px solid var(--green); background: transparent;
+            color: var(--green); font-family: 'Space Mono', monospace;
+            font-size: 13px; font-weight: 700; letter-spacing: 2px;
+            text-transform: uppercase; cursor: pointer;
+            position: relative; overflow: hidden; transition: color 0.3s;
+        }
+        .scan-btn::before { content:''; position:absolute; inset:0; background:var(--green); transform:scaleX(0); transform-origin:left; transition:transform 0.3s ease; }
+        .scan-btn:hover::before { transform:scaleX(1); }
+        .scan-btn:hover { color: #050a14; }
+        .scan-btn:active { transform: scale(0.98); }
+        .btn-text { position: relative; z-index: 1; }
+
+        /* Error box */
+        .error-box {
+            margin-top: 16px; padding: 12px 16px;
+            background: rgba(255,59,107,0.1); border: 1px solid rgba(255,59,107,0.3);
+            border-radius: 10px; font-family: 'Space Mono', monospace; font-size: 12px;
+            color: var(--red); animation: fade-up 0.4s ease;
+        }
+
+        /* Scanner animation */
+        .scanner-wrap { margin-top: 24px; display: none; }
+        .scanner-wrap.visible { display: block; animation: fade-up 0.4s ease; }
+        .scan-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+        .scan-status { font-family:'Space Mono',monospace; font-size:11px; color:var(--green); display:flex; align-items:center; gap:6px; }
+        .blink-dot { width:6px;height:6px; background:var(--green); border-radius:50%; animation:blink 0.8s ease-in-out infinite; }
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+        .scan-pct { font-family:'Space Mono',monospace; font-size:13px; font-weight:700; color:var(--green); }
+        .progress-track { height:4px; background:rgba(0,255,136,0.1); border-radius:4px; overflow:hidden; }
+        .progress-fill { height:100%; width:0%; background:linear-gradient(90deg,#00ff88,#00d4ff); border-radius:4px; transition:width 0.15s linear; position:relative; }
+        .progress-fill::after { content:''; position:absolute; right:0;top:-2px; width:6px;height:8px; background:white; border-radius:3px; box-shadow:0 0 8px var(--green); }
+        .step-list { margin-top:14px; display:flex; flex-direction:column; gap:6px; }
+        .step-item { display:flex; align-items:center; gap:8px; font-family:'Space Mono',monospace; font-size:11px; color:rgba(148,163,184,0.5); transition:color 0.3s; }
+        .step-item.active { color:var(--green); }
+        .step-item.done { color:rgba(0,255,136,0.5); }
+        .step-indicator { width:14px;height:14px; border-radius:50%; border:1px solid currentColor; display:flex;align-items:center;justify-content:center; flex-shrink:0; font-size:8px; }
+        .step-item.active .step-indicator { animation:pulse-dot 1s ease-in-out infinite; }
+        @keyframes pulse-dot { 0%,100%{box-shadow:0 0 0 0 rgba(0,255,136,0.4)} 50%{box-shadow:0 0 0 4px rgba(0,255,136,0)} }
+
+        /* Result */
+        .result-wrap { margin-top: 24px; }
+        .result-card { border-radius:14px; padding:20px; border:1px solid; position:relative; overflow:hidden; animation: pop-in 0.6s cubic-bezier(0.34,1.56,0.64,1); }
+        @keyframes pop-in { from{opacity:0;transform:scale(0.8)} to{opacity:1;transform:scale(1)} }
+        .result-card.safe   { background:rgba(0,255,136,0.06); border-color:rgba(0,255,136,0.25); }
+        .result-card.suspicious { background:rgba(255,140,0,0.06); border-color:rgba(255,140,0,0.25); }
+        .result-card.phishing { background:rgba(255,59,107,0.06); border-color:rgba(255,59,107,0.25); }
+
+        .result-top { display:flex; align-items:center; gap:14px; margin-bottom:16px; }
+        .result-icon-wrap { width:48px;height:48px; border-radius:12px; display:flex;align-items:center;justify-content:center; font-size:22px; flex-shrink:0; }
+        .safe .result-icon-wrap        { background:rgba(0,255,136,0.15); }
+        .suspicious .result-icon-wrap  { background:rgba(255,140,0,0.15); }
+        .phishing .result-icon-wrap    { background:rgba(255,59,107,0.15); }
+
+        .result-title { font-weight:800; font-size:17px; margin-bottom:2px; }
+        .safe .result-title        { color:var(--green); }
+        .suspicious .result-title  { color:#ff8c00; }
+        .phishing .result-title    { color:var(--red); }
+
+        .result-sub { font-family:'Space Mono',monospace; font-size:11px; color:rgba(148,163,184,0.7); }
+
+        .risk-section { margin-bottom:14px; }
+        .risk-header { display:flex; justify-content:space-between; margin-bottom:8px; }
+        .risk-label-txt { font-family:'Space Mono',monospace; font-size:10px; letter-spacing:1px; color:rgba(148,163,184,0.6); text-transform:uppercase; }
+        .risk-score-num { font-family:'Space Mono',monospace; font-size:13px; font-weight:700; }
+        .safe .risk-score-num        { color:var(--green); }
+        .suspicious .risk-score-num  { color:#ff8c00; }
+        .phishing .risk-score-num    { color:var(--red); }
+
+        .risk-track { height:6px; background:rgba(255,255,255,0.06); border-radius:6px; overflow:hidden; }
+        .risk-bar { height:100%; border-radius:6px; }
+        .safe .risk-bar        { background:linear-gradient(90deg,#00ff88,#00d4ff); }
+        .suspicious .risk-bar  { background:linear-gradient(90deg,#ff8c00,#ffdd00); }
+        .phishing .risk-bar    { background:linear-gradient(90deg,#ff8c00,#ff3b6b); }
+
+        .checks-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+        .check-chip {
+            background:rgba(0,0,0,0.3); border-radius:8px; padding:8px 10px;
+            display:flex; align-items:center; gap:8px;
+            font-family:'Space Mono',monospace; font-size:10px;
+            animation:chip-in 0.4s ease forwards; opacity:0;
+        }
+        @keyframes chip-in { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+        .check-chip.ok  { color:rgba(0,255,136,0.9); border:1px solid rgba(0,255,136,0.15); }
+        .check-chip.bad { color:rgba(255,59,107,0.9); border:1px solid rgba(255,59,107,0.15); }
+        .chip-dot { width:5px;height:5px; border-radius:50%; flex-shrink:0; }
+        .ok  .chip-dot { background:var(--green); box-shadow:0 0 6px var(--green); }
+        .bad .chip-dot { background:var(--red);   box-shadow:0 0 6px var(--red); }
+
+        .flags-row { margin-top:12px; display:flex; flex-wrap:wrap; gap:6px; }
+        .flag-pill { font-family:'Space Mono',monospace; font-size:9px; letter-spacing:1px; padding:4px 8px; border-radius:6px; background:rgba(255,59,107,0.12); border:1px solid rgba(255,59,107,0.25); color:rgba(255,59,107,0.8); }
+
+        .footer { text-align:center; margin-top:20px; font-family:'Space Mono',monospace; font-size:10px; color:rgba(100,116,139,0.5); letter-spacing:1px; animation:fade-up 1s 0.6s both; }
+    </style>
+</head>
+<body>
+
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+<div class="orb orb3"></div>
+<canvas id="particles"></canvas>
+
+<div class="container">
+    <div class="header">
+        <div class="logo-ring">
+            <div class="pulse-ring"></div>
+            <div class="pulse-ring"></div>
+            <svg class="spinner" width="80" height="80" viewBox="0 0 80 80">
+                <circle cx="40" cy="40" r="36" fill="none" stroke="rgba(0,255,136,0.25)" stroke-width="1" stroke-dasharray="6 4"/>
+            </svg>
+            <svg class="shield" width="40" height="40" viewBox="0 0 40 40" fill="none">
+                <path d="M20 4 L34 10 L34 22 C34 30 20 37 20 37 C20 37 6 30 6 22 L6 10 Z" fill="rgba(0,255,136,0.12)" stroke="#00ff88" stroke-width="1.5"/>
+                <path d="M13 20 L18 25 L27 15" stroke="#00ff88" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+        </div>
+        <h1>Phishing <span>Detector</span></h1>
+        <div class="tagline">AI-Powered URL Security Scanner</div>
+    </div>
+
+    <div class="card">
+        <div class="scan-line" id="scanLine"></div>
+
+        <form method="POST" onsubmit="startScan(event)">
+            <div class="input-label">Target URL</div>
+            <div style="position:relative;">
+                <span id="prefixBadge" style="
+                    position:absolute; left:12px; top:50%; transform:translateY(-50%);
+                    font-family:'Space Mono',monospace; font-size:12px;
+                    color:var(--green); opacity:0.7; pointer-events:none;
+                    user-select:none; z-index:2;
+                "></span>
+                <input type="text" name="url" class="url-input" id="urlInput"
+                       placeholder="type domain here..."
+                       value="{{ request.form.get('url', '') }}"
+                       style="padding-left:12px;"
+                       autocomplete="off" required />
+            </div>
+            <!-- http/https toggle -->
+            <div style="display:flex; gap:8px; margin-bottom:14px; margin-top:-8px;">
+                <button type="button" id="btnHttps" onclick="setProtocol('https')" style="
+                    flex:1; padding:7px; border-radius:8px; border:1px solid rgba(0,255,136,0.5);
+                    background:rgba(0,255,136,0.12); color:var(--green);
+                    font-family:'Space Mono',monospace; font-size:11px; cursor:pointer; transition:all 0.2s;
+                ">🔒 HTTPS</button>
+                <button type="button" id="btnHttp" onclick="setProtocol('http')" style="
+                    flex:1; padding:7px; border-radius:8px; border:1px solid rgba(148,163,184,0.2);
+                    background:transparent; color:rgba(148,163,184,0.5);
+                    font-family:'Space Mono',monospace; font-size:11px; cursor:pointer; transition:all 0.2s;
+                ">🔓 HTTP</button>
+            </div>
+            <button type="submit" class="scan-btn"><span class="btn-text">⟶ Initiate Scan</span></button>
+        </form>
+
+        {% if error %}
+        <div class="error-box">⚠ {{ error }}</div>
+        {% endif %}
+
+        <!-- JS scanner animation (plays before form submits) -->
+        <div class="scanner-wrap" id="scannerWrap">
+            <div class="scan-header">
+                <div class="scan-status"><div class="blink-dot"></div><span id="scanStatusText">Scanning...</span></div>
+                <div class="scan-pct" id="scanPct">0%</div>
+            </div>
+            <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+            <div class="step-list" id="stepList"></div>
+        </div>
+
+        {% if result %}
+        {% set verdict_lower = result.verdict | lower %}
+        {% set icon = '🛡️' if result.verdict == 'Safe' else ('⚠️' if result.verdict == 'Suspicious' else '🚨') %}
+        {% set sub = 'No major threats detected — stay vigilant.' if result.verdict == 'Safe' else ('Some risk signals found — proceed with caution.' if result.verdict == 'Suspicious' else 'Multiple phishing signals detected — avoid this URL.') %}
+
+        <div class="result-wrap">
+            <div class="result-card {{ verdict_lower }}">
+                <div class="result-top">
+                    <div class="result-icon-wrap">{{ icon }}</div>
+                    <div>
+                        <div class="result-title">{{ result.verdict }} Detected</div>
+                        <div class="result-sub">{{ sub }}</div>
+                    </div>
+                </div>
+                <div class="risk-section">
+                    <div class="risk-header">
+                        <span class="risk-label-txt">Risk Score</span>
+                        <span class="risk-score-num">{{ result.score }}%</span>
+                    </div>
+                    <div class="risk-track">
+                        <div class="risk-bar" id="riskBar" style="width:0%"></div>
+                    </div>
+                </div>
+                <div class="checks-grid">
+                    {% for check in result.checks %}
+                    <div class="check-chip {{ 'ok' if check.ok else 'bad' }}" style="animation-delay:{{ loop.index0 * 0.08 }}s">
+                        <div class="chip-dot"></div>{{ check.label }}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% if result.flags %}
+                <div class="flags-row">
+                    {% for flag in result.flags %}
+                    <span class="flag-pill">{{ flag }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <script>
+        // Animate risk bar after page load
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                document.getElementById('riskBar').style.transition = 'width 1.4s cubic-bezier(0.22,1,0.36,1)';
+                document.getElementById('riskBar').style.width = '{{ result.score }}%';
+            }, 300);
+        });
+        </script>
+        {% endif %}
+    </div>
+
+    <div class="footer">Cybersecurity Project &nbsp;·&nbsp; Flask Web App &nbsp;·&nbsp; v2.0</div>
+</div>
+
+<script>
+// Particles
+const canvas = document.getElementById('particles');
+const ctx = canvas.getContext('2d');
+canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+window.addEventListener('resize', () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; });
+const pts = Array.from({length:60}, () => ({
+    x:Math.random()*canvas.width, y:Math.random()*canvas.height,
+    vx:(Math.random()-0.5)*0.5, vy:(Math.random()-0.5)*0.5,
+    r:Math.random()*1.5+0.3, a:Math.random()*0.4+0.1
+}));
+function drawPts() {
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    pts.forEach(p => {
+        p.x+=p.vx; p.y+=p.vy;
+        if(p.x<0||p.x>canvas.width) p.vx*=-1;
+        if(p.y<0||p.y>canvas.height) p.vy*=-1;
+        ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+        ctx.fillStyle=`rgba(0,255,136,${p.a})`; ctx.fill();
+    });
+    for(let i=0;i<pts.length;i++) for(let j=i+1;j<pts.length;j++) {
+        const dx=pts[i].x-pts[j].x, dy=pts[i].y-pts[j].y;
+        const d=Math.sqrt(dx*dx+dy*dy);
+        if(d<100){ ctx.beginPath(); ctx.moveTo(pts[i].x,pts[i].y); ctx.lineTo(pts[j].x,pts[j].y);
+            ctx.strokeStyle=`rgba(0,255,136,${0.06*(1-d/100)})`; ctx.lineWidth=0.5; ctx.stroke(); }
+    }
+    requestAnimationFrame(drawPts);
+}
+drawPts();
+
+// ── Auto-prefix logic ──
+let currentProtocol = 'https';
+
+function setProtocol(proto) {
+    currentProtocol = proto;
+    document.getElementById('btnHttps').style.background = proto === 'https' ? 'rgba(0,255,136,0.12)' : 'transparent';
+    document.getElementById('btnHttps').style.borderColor = proto === 'https' ? 'rgba(0,255,136,0.5)' : 'rgba(148,163,184,0.2)';
+    document.getElementById('btnHttps').style.color = proto === 'https' ? 'var(--green)' : 'rgba(148,163,184,0.5)';
+    document.getElementById('btnHttp').style.background = proto === 'http' ? 'rgba(255,59,107,0.12)' : 'transparent';
+    document.getElementById('btnHttp').style.borderColor = proto === 'http' ? 'rgba(255,59,107,0.4)' : 'rgba(148,163,184,0.2)';
+    document.getElementById('btnHttp').style.color = proto === 'http' ? 'var(--red)' : 'rgba(148,163,184,0.5)';
+    syncInputPadding();
+}
+
+function syncInputPadding() {
+    const badge = document.getElementById('prefixBadge');
+    const input = document.getElementById('urlInput');
+    const prefix = currentProtocol + '://';
+    badge.textContent = prefix;
+    // measure badge width and pad input accordingly
+    const w = badge.scrollWidth + 16;
+    input.style.paddingLeft = w + 'px';
+}
+
+// On page load: set https as default, handle existing value
+window.addEventListener('DOMContentLoaded', () => {
+    const input = document.getElementById('urlInput');
+    let val = input.value;
+    // If value already has protocol, strip it and set toggle
+    if (val.startsWith('https://')) { val = val.slice(8); currentProtocol = 'https'; }
+    else if (val.startsWith('http://')) { val = val.slice(7); currentProtocol = 'http'; setProtocol('http'); }
+    input.value = val;
+    setProtocol(currentProtocol);
+
+    // Strip protocol if user pastes a full URL
+    input.addEventListener('input', () => {
+        let v = input.value;
+        if (v.startsWith('https://')) { input.value = v.slice(8); setProtocol('https'); }
+        else if (v.startsWith('http://'))  { input.value = v.slice(7); setProtocol('http'); }
+    });
+});
+
+// Before submit: prepend protocol to value
+function getFullURL() {
+    return currentProtocol + '://' + document.getElementById('urlInput').value.trim();
+}
+
+// ── Scan animation (plays before form submits) ──
+const STEPS = [
+    'Resolving domain name...',
+    'Verifying SSL certificate...',
+    'Analyzing URL structure...',
+    'Checking keyword patterns...',
+    'Cross-referencing threat DB...',
+    'Generating risk report...'
+];
+
+function startScan(e) {
+    e.preventDefault();
+    const form = e.target;
+    // Inject full URL (with protocol) into a hidden input
+    let hidden = form.querySelector('input[name="url"]');
+    hidden.value = getFullURL();
+    const sl = document.getElementById('scanLine');
+    sl.classList.remove('active'); void sl.offsetWidth; sl.classList.add('active');
+    const sw = document.getElementById('scannerWrap');
+    sw.className = 'scanner-wrap visible';
+
+    const sl2 = document.getElementById('stepList');
+    sl2.innerHTML = '';
+    STEPS.forEach(s => {
+        const el = document.createElement('div');
+        el.className = 'step-item';
+        el.innerHTML = `<div class="step-indicator"></div><span>${s}</span>`;
+        sl2.appendChild(el);
+    });
+
+    let pct = 0, lastStep = -1;
+    const fill = document.getElementById('progressFill');
+    const pctEl = document.getElementById('scanPct');
+    const statusEl = document.getElementById('scanStatusText');
+    const items = sl2.querySelectorAll('.step-item');
+
+    const timer = setInterval(() => {
+        pct += 2;
+        fill.style.width = pct + '%';
+        pctEl.textContent = Math.round(pct) + '%';
+        const si = Math.min(Math.floor(pct / (100/STEPS.length)), STEPS.length-1);
+        if(si !== lastStep) {
+            if(lastStep >= 0) { items[lastStep].classList.replace('active','done'); items[lastStep].querySelector('.step-indicator').textContent = '✓'; }
+            items[si].classList.add('active');
+            statusEl.textContent = STEPS[si];
+            lastStep = si;
+        }
+        if(pct >= 100) {
+            clearInterval(timer);
+            items[lastStep].classList.replace('active','done');
+            items[lastStep].querySelector('.step-indicator').textContent = '✓';
+            statusEl.textContent = 'Submitting to server...';
+            setTimeout(() => form.submit(), 300);
+        }
+    }, 30);
+}
+</script>
+</body>
+</html>

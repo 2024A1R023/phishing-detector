@@ -1,0 +1,2 @@
+{"timestamp": "2026-05-02T20:22:33.575887", "ip_hash": "12ca17b49af2", "url_hash": "594cb5b8af7d0c84", "score": 0, "verdict": "Safe", "flags": []}
+{"timestamp": "2026-05-02T20:23:14.905747", "ip_hash": "12ca17b49af2", "url_hash": "85afc974d423f823", "score": 65, "verdict": "Phishing", "flags": ["NO_HTTPS", "SUSPICIOUS_TLD", "PHISHING_KEYWORDS", "BRAND_IMPERSONATION"]}
